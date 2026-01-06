@@ -2,17 +2,18 @@
 pragma solidity ^0.8.13;
 
 import {Script} from "forge-std/Script.sol";
-import {Counter} from "../src/Counter.sol";
+import {ApplePackageIntegrity} from "../src/ApplePackageIntegrity.sol";
+import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 contract CounterScript is Script {
-    Counter public counter;
+    ApplePackageIntegrity public counter;
 
     function setUp() public {}
 
     function run() public {
         vm.startBroadcast();
 
-        counter = new Counter();
+        counter = new ApplePackageIntegrity();
 
         vm.stopBroadcast();
     }
