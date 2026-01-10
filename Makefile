@@ -17,5 +17,5 @@ deploy-sepolia:
 	--constructor-args $(LEDGER_ETH_ADDRESS) $(LEDGER_ETH_ADDRESS)
 
 grant-sepolia:
-	cast send $(CONTRACT_ADDR) "grantHashSetter(address)" 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC \
+	cast send $(CONTRACT_ADDR) "grantHashSetter(address)" 0x63bbb5E593e3623De5acdee71C5e6A3ACF83D81f \
 	--ledger --rpc-url $(SEPOLIA_RPC_URL)
