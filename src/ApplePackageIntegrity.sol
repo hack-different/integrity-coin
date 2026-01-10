@@ -3,10 +3,12 @@ pragma solidity ^0.8.13;
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
-import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol";
 
 contract ApplePackageIntegrity is Initializable, AccessControl {
     error CannotContestNull(string name);
+    error InconsistentData();
+
+    event SetIntegrityHashEvent(PackageType packageType, string name, HashType hashType, bytes hash);
 
     enum PackageType {
         IPSW
@@ -32,38 +34,50 @@ contract ApplePackageIntegrity is Initializable, AccessControl {
 
     struct PackageData {
         string name;
+        PackageType packageType;
         mapping(HashType => bytes) hashes;
         mapping(address => mapping(HashType => bytes)) hashContests;
     }
 
-    mapping(PackageType => mapping(uint256 => PackageData)) _data;
+    mapping(uint256 => PackageData) private _data;
 
     constructor(address upgrader, address admin) {
         _grantRole(UPGRADER_ROLE, upgrader);
         _grantRole(ADMIN_ROLE, admin);
     }
 
-    function grantHashSetter(address)
-
-    function storeHash(PackageType packageType, string name, HashType hashType, bytes hash) external onlyRole(HASH_SETTER_ROLE) {
-        bytes32 nameHash = keccak256(name);
-        PackageData memory data = _data[nameHash];
-        data.name = name;
-        data.hashes[hashType] = hash;
-
-        _data[nameHash] = data;
+    function grantHashSetter(address role) onlyRole(ADMIN_ROLE) external {
+        _grantRole(HASH_SETTER_ROLE, role);
     }
 
-    function contestHash(PackageType packageType, string name, HashType hashType, bytes hash) payable external {
-        bytes32 nameHash = keccak256(name);
-        PackageData memory data = _data[nameHash];
+    function storeHash(PackageType packageType, string calldata name, HashType hashType, bytes calldata hash) external onlyRole(HASH_SETTER_ROLE) {
+        uint256 nameHash = uint256(keccak256(abi.encodePacked(name)));
+        _data[nameHash].name = name;
+        _data[nameHash].packageType = packageType;
+        _data[nameHash].hashes[hashType] = hash;
 
-        if (nameHash != keccak256(data.name)) {
+        emit SetIntegrityHashEvent(packageType, name, hashType, hash);
+    }
+
+    function getHash(PackageType packageType, string calldata name, HashType hashType) external view returns (bytes memory) {
+        uint256 nameHash = uint256(keccak256(abi.encodePacked(name)));
+        if (packageType != _data[nameHash].packageType) {
+            revert InconsistentData();
+        }
+        return _data[nameHash].hashes[hashType];
+    }
+
+    function contestHash(PackageType packageType, string calldata name, HashType hashType, bytes calldata hash) payable external {
+        uint256 nameHash = uint256(keccak256(abi.encodePacked(name)));
+
+        if (nameHash != uint256(keccak256(abi.encodePacked(_data[nameHash].name)))) {
             revert CannotContestNull(name);
         }
 
-        data.hashContests[msg.sender][hashType] = data;
+        if (packageType != _data[nameHash].packageType) {
+            revert InconsistentData();
+        }
 
-        _data[nameHash] = data;
+        _data[nameHash].hashContests[msg.sender][hashType] = hash;
     }
 }
